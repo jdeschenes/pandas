@@ -26,7 +26,7 @@ from pandas import concat
 from pandas.core.common import PerformanceWarning, UnsortedIndexError
 
 import pandas.util.testing as tm
-from pandas import date_range
+from pandas import (date_range, to_timedelta)
 
 
 _verbose = False
@@ -100,7 +100,7 @@ class TestIndexing(tm.TestCase):
     _multiprocess_can_split_ = True
 
     _objs = set(['series', 'frame', 'panel'])
-    _typs = set(['ints', 'labels', 'mixed', 'ts', 'floats', 'empty', 'ts_rev'])
+    _typs = set(['ints', 'labels', 'mixed', 'ts', 'floats', 'empty', 'ts_rev', 'dt'])
 
     def setUp(self):
 
@@ -149,6 +149,13 @@ class TestIndexing(tm.TestCase):
         self.frame_empty = DataFrame({})
         self.series_empty = Series({})
         self.panel_empty = Panel({})
+
+        self.series_dt = Series(np.random.randn(4),
+                                index=to_timedelta(range(4), unit='s'))
+        self.frame_dt = DataFrame(np.random.randn(4, 4),
+                                  index=to_timedelta(range(4), unit='s'))
+        self.panel_dt = Panel(np.random.randn(4, 4, 4),
+                              items=to_timedelta(range(4), unit='s'))
 
         # form agglomerates
         for o in self._objs:
@@ -723,6 +730,15 @@ class TestIndexing(tm.TestCase):
                              dtype='uint64')
         tm.assert_frame_equal(df2, expected)
 
+        # GH 14946
+        # Setting time_delta
+
+        df = DataFrame({'x': range(5)}, index=to_timedelta(range(5)))
+        test_series = df.copy()['x']
+        test_series[test_series < 2] = 10
+        df.loc[df['x'] < 2, 'x'] = 10
+        tm.assert_series_equal(test_series, df['x'])
+
     def test_ix_loc_setitem_consistency(self):
 
         # GH 5771
@@ -1214,7 +1230,7 @@ class TestIndexing(tm.TestCase):
         # boolean indexers
         b = [True, False, True, False]
         self.check_result('bool', 'loc', b, 'ix', b,
-                          typs=['ints', 'labels', 'mixed', 'ts', 'floats'])
+                          typs=['ints', 'labels', 'mixed', 'ts', 'floats', 'dt'])
         self.check_result('bool', 'loc', b, 'ix', b, typs=['empty'],
                           fails=KeyError)
 
